@@ -78,9 +78,9 @@ All the above command is doing is removing the whitespace and `:` characters for
 
 It is possible to use this pubkey, directly, to receive bitcoins, by using a standard pay-to-pubkey (P2PK) transaction. In fact, this was used by Satoshi in the first ever Bitcoin transaction. However, it is now uncommon to do so.
 
-An improvement to P2PK that Satoshi offered is pay-to-pubkey-hash (P2PKH) transactions and base58check encoding, typically denoted by using what is now known as a legacy Bitcoin addresses.
+An improvement to P2PK that Satoshi offered was pay-to-pubkey-hash (P2PKH) transactions and base58check encoding.
 
-To calculate a legacy base58 encoded Bitcoin P2PKH address, we first hash the pubkey with sha256, followed by ripemd160.
+To calculate a base58-encoded Bitcoin P2PKH address, we first hash the pubkey with sha256, followed by ripemd160.
 ```
 echo 0487a9fec891245aaca97bc9fe41d25419160fdf6a708246d7a15f97a4fce4d405e568f3752f4f41a5d0e319b6635425c00e31374f58ccf20d454aaae9f73700f1 | xxd -r -p | openssl sha256 | xxd -r -p | openssl ripemd160 
 ```
@@ -90,7 +90,7 @@ Output:
 ```
 Hashing the pubkey as such reduces the data to a 20 byte string. This helps to reduce transaction size and also offers a some extra security by not revealing the public key directly on the blockchain, until time of spenditure.
 
-Note: The `xxd` command above is simply used to translate the plaintext hex string to binary, to be used as input to the subsequent command.
+Note: The `xxd` commands above are simply used to translate the plaintext hex string to binary, to be used as input to the subsequent command.
 
 We then prepend a zero byte, signifying that this should be used for a P2PKH transaction on Bitcoin mainnet, i.e.
 ```
@@ -157,7 +157,7 @@ Alternatively, we can use [base58](https://github.com/keis/base58) which can be 
 ```
 pip3 install base58
 ```
-Once installed we can leverage it to retrieve our end result, a legacy Bitcoin P2PKH address for mainnet.
+Once installed we can leverage it to retrieve our end result, a Bitcoin P2PKH address for mainnet.
 ```
 echo $(echo 00750cdc483aef5b05f8465814b4dcc4ab36060880d74bee98 | xxd -r -p | base58)
 ```
