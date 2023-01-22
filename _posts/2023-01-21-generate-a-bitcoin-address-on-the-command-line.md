@@ -1,7 +1,6 @@
 ---
 layout: post
 title:  "Generate a Bitcoin address on the command line"
-date: 2023-01-21
 ---
 
 A bitcoin address is all you need in order for someone to send you bitcoins, and it's 
