@@ -6,7 +6,7 @@ title:  "Generate a Bitcoin address on the command line"
 A bitcoin address is all you need in order for someone to send you bitcoins, and it's 
 quite easy to generate one with only a few standard CLI commands.
 
-We can generate one easily, in [pem](https://en.wikipedia.org/wiki/Privacy-Enhanced_Mail) format, 
+To start, we can generate the secret key, in [pem](https://en.wikipedia.org/wiki/Privacy-Enhanced_Mail) format, 
 with `openssl`
 ```
 openssl ecparam -name secp256k1 -genkey -noout
@@ -19,7 +19,7 @@ oUQDQgAEh6n+yJEkWqype8n+QdJUGRYP32pwgkbXoV+XpPzk1AXlaPN1L09BpdDj
 GbZjVCXADjE3T1jM8g1FSqrp9zcA8Q==
 -----END EC PRIVATE KEY-----
 ```
-Yours will look similar but will of course be a different value, given that it is a random generation. This should be be __saved securely__ and kept __secret__, as it gives access to spend any bitcoins associated with it's public key.
+This randomly generated key should be __saved securely__ and kept __secret__, as it gives access to spend any bitcoins associated with it's public key.
 
 Save this key to a file, e.g. `secret.pem`.
 
