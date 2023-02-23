@@ -4,6 +4,8 @@ title:  "How to sign a Bitcoin transaction"
 categories: bitcoin bitcoind bitcoin-cli openssl python python-ecdsa
 ---
 
+_Edited: 02/23/2023_
+
 ## Introduction
 
 In the last blog post, we saw how to [generate a bitcoin address on the command line](https://jtraub91.github.io/generate-a-bitcoin-address-on-the-command-line.html). This was a base58-encoded address which was used to receive bitcoin in a pay-to-pubkey-hash transaction.
@@ -263,6 +265,12 @@ Output:
 ```
 
 Note: The signing algorithm is not deterministic and will result in different values each time for the same signature data and key
+
+Hint: You can verify signatures with `openssl` using the `-verify` flag. E.g.
+
+```bash
+openssl sha256 -verify [file] -signature [file] [file ...]
+```
 
 Finally, we replace / insert in the original transaction, the correct scriptSig, which for pay-to-pubkeyhash transactions is denoted in Bitcoin [Script](https://en.bitcoin.it/wiki/Script) as
 
