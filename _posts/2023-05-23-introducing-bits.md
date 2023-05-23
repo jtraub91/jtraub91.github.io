@@ -13,7 +13,7 @@ This post will serve as informal documentation for some of what you can do with 
 
 ```bash
 git clone https://github.com/jtraub91/bits
-cd bits
+cd bits/
 pip install .
 ```
 
@@ -29,7 +29,9 @@ The `bits` command, by itself, with no subcommand present, is a command in its o
 
 To elaborate, three input / output (I/O) formats are supported: raw bytes, binary string, and hexadecimal string, which may be specified independently making `bits` able to be used as a converter between these formats. Raw bytes are read transparently; however, binary string and hexadecimal string input is stripped of leading or trailing whitespace, _and_ left zero padded to the nearest byte if not provided as an integer multiple of 8 bits. Furthermore, raw bytes are output as-is, yet binary and hexadecimal string will be output will have a trailing newline character.
 
-The `bits` base command, sharing functionality with standard Linux utility `xxd`, can be used similarly in some respects.
+#### Comparing to `xxd`
+
+The `bits` base command, sharing functionality with standard Linux utility [xxd](https://linux.die.net/man/1/xxd), can be used similarly in some respects.
 
 With `xxd`, we can convert a raw binary input to a hex string like so,
 
@@ -43,9 +45,9 @@ Similarly we can do the following with `bits`
 head -c 8 /dev/urandom | bits -1 -0x
 ```
 
-The `-1` indicates that the _input_ is raw bytes, while the `-0x` flag indicates the _output_ shall be a hexadecimal string.
+The `-1` indicates that the _input_ is raw bytes, while the `-0x` flag indicates the _output_ shall be a hexadecimal string. In general, these flags can be ommitted, but unless otherwise [configured](https://github.com/jtraub91/bits#configuration), the default I/O format for most commands is hexadecimal string.
 
-`bits` will output the string on a single line, whereas with `xxd` we may have to use the `-c` argument to achieve a similar result. For example,
+The `bits` command will output the string on a single line, whereas with `xxd` we may have to use the `-c` argument to achieve a similar result. For example,
 
 ```bash
 head -c 32 /dev/urandom | xxd -p -c 32
@@ -57,7 +59,7 @@ becomes simply
 head -c 32 /dev/urandom | bits -1 
 ```
 
-(Notice that `-0x` can be absent as hexadecimal string is the default IO format for most commands)
+(As alluded to above, with `-0x` omitted, and no other configuration, the output format defaults to hexadecimal string)
 
 Furthermore, the support for binary strings provides functionality that `xxd` does not (nor any other CLI tool that I am aware of), in that it can convert between binary string representation. For example, with `xxd` in `-bits` (`-b`) mode, we can do,
 
@@ -107,7 +109,7 @@ The `bits key` command will generate a bitcoin private key, which is nothing but
 This, you may notice, _can_ be generated with the base command, e.g.
 
 ```bash
-head -c 32 /dev/urandom | bits -0
+head -c 32 /dev/urandom | bits -1
 ```
 
 but instead of having to manually confirm the output is below `SECP256K1_N` you can use `bits key` instead for convenience.
@@ -126,7 +128,7 @@ For compatibility with legacy tooling (if you're into that sort of thing), the `
 bits key -0pem
 ```
 
-Note that `bits` _does not_ provide support for PEM-encoded _input_ on the CLI, so you will need to convert back to a supported format (raw, bin, hex) in order to use with other `bits` (sub)commands. This can be done with `openssl ec` or `openssl asn1parse`, for example.
+Note that `bits` _does not_ currently provide support for PEM-encoded _input_ on the CLI, so you will need to convert back to a supported format (raw, bin, hex) in order to use with other `bits` (sub)commands. This can be done with [openssl](https://www.openssl.org/) (`openssl ec` or `openssl asn1parse`, for example).
 
 ### Create a public key from a private key
 
@@ -146,19 +148,19 @@ Notice we leverage the `-out` flag again above to save the pubkey to a file.
 
 ### Creating a bitcoin address
 
-Now, you may want to create a Bitcoin address from your key pair. The `bits addr` command provides a convenient method to handle the encoding for various address types. This command supports generating legacy and segwit addresses alike, but expects the payload to passed in as the argument. For example, for legacy pay to pubkey addresses (P2PKH), we'll need to hash the pubkey first with `hash160`. The [bits](https://github.com/jtraub91/bits) CLI fortunately provides the `ripemd160`, `sha256`, `hash160`, and `hash256` crypto hashing subcommands for convenience. Thus, to generate a legacy Bitcoin address from our pubkey, we may use the following, for example.
+Now, you may want to create a Bitcoin address from your key pair. The `bits addr` command provides a convenient method to handle the encoding for various address types. This command supports generating legacy and segwit addresses alike, but expects the payload to passed in as the argument. For example, for legacy [pay to pubkey hash](https://learnmeabitcoin.com/technical/p2pkh) addresses (P2PKH), we'll need to hash the pubkey first with `hash160`. The [bits](https://github.com/jtraub91/bits) CLI fortunately provides the `ripemd160`, `sha256`, `hash160`, and `hash256` crypto hashing subcommands for convenience. Thus, to generate a legacy Bitcoin address from our pubkey, we may use the following, for example.
 
 ```bash
 bits hash160 -in pubkey.hex | bits addr | awk '{print $1}'
 ```
 
-The output is piped into `awk` above only for readability, i.e. to produce a newline on the shell output since `bits addr` will technically output raw bytes, with no newline appended; however, in these situations `bits` provides the `--print` (`-P`) flag to do the same, for convenience. E.g.
+In the above example, the pubkey saved to `pubkey.hex` is read as input to `bits hash160`, thus is hashed, and piped to the `bits addr` command to complete the encoding. The output of `bits addr` is then piped into `awk` only for readability, i.e. to produce a newline on the shell output since `bits addr` will technically output raw binary, with no newline appended; however, in these situations `bits` provides the `--print` (`-P`) flag to do the same, for convenience. E.g.
 
 ```bash
 bits hash160 -in pubkey.hex | bits addr -P
 ```
 
-`bits addr` accepts a `--type` (`-T`) flag for address type which defaults to "p2pkh" for pay-to-pubkey adresses, but may be specified to be "p2sh" for [BIP16](https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki) pay-to-script-hash addresses.
+The `bits addr` command accepts a `--type` (`-T`) flag for address type which defaults to "p2pkh" for P2PKH addresses, but may be specified to be "p2sh" for [BIP16](https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki) [pay to script hash](https://learnmeabitcoin.com/technical/p2sh) (P2SH) addresses.
 
 A testnet address may be generated instead by leveraging the `--network` (`-N`) flag. E.g.
 
@@ -172,15 +174,15 @@ Segwit addresses can be generated similarly, e.g.
 bits hash160 -in pubkey.hex | bits addr --witness-version 0 -P
 ```
 
-The presence of the `--witness-version` (`--wv`) flag indicates a segwit address and its value represents the version. When this flag is present the `--type` flag is ignored. Segwit addresses identify themselves as pay to witness key hash (P2WKH) or pay to witness script hash (P2WSH) by the size of their payload, thus the user is expected to form and provide the correct payload as necessary.
+The presence of the `--witness-version` (`--wv`) flag indicates a segwit address and its value represents the version. When this flag is present the `--type` flag is ignored. Segwit addresses, per [BIP 141](https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki), identify themselves as [pay to witness key hash](https://river.com/learn/terms/p/p2wpkh/) (P2WKH) or [pay to witness script hash](https://river.com/learn/terms/p/p2wsh/) (P2WSH) by the size of their payload, thus the user is expected to form and provide the correct payload as necessary.
 
-The `bits addr` command isn't doing anything magical. It accepts a payload and optional network and address type (or witness version) arguments, prepends the correct version byte and encodes in base58check or bech32, as appropriate. This can also be done manually with other [bits](https://github.com/jtraub91/bits) cli subcommands as we will see in the next section.
+The `bits addr` command isn't doing anything magical 🧙‍♂️ It accepts a payload and optional network and address type (or witness version) arguments, prepends the correct version byte and encodes in [base58check](https://en.bitcoin.it/wiki/Base58Check_encoding) or [bech32](https://en.bitcoin.it/wiki/Bech32) ([BIP 173](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki)), as appropriate. This can also be done manually with other [bits](https://github.com/jtraub91/bits) CLI subcommands as we will see in the next section.
 
 ### Encoding (and decoding) with `base58` and `bech32`
 
-The [bits](https://github.com/jtraub91/bits) cli provides methods for encoding and decoding base58(check) and bech32.
+The [bits](https://github.com/jtraub91/bits) CLI provides methods for encoding and decoding base58(check) and bech32.
 
-Recreating what was performed above, by the `bits addr` command, but instead with `bits base58` and `bits bech32`, repectively, we could do the following, for example.
+Recreating what was performed above by the `bits addr` command, but instead with `bits base58` and `bits bech32`, repectively, we could do the following, for example.
 
 For legacy P2PKH addresses:
 
@@ -194,7 +196,7 @@ Doing this, all at once, on the command line, would look something like the foll
 bits hash160 -in pubkey.hex | awk '{print "00"$1}' | bits base58 --check
 ```
 
-The `--check` option is supplied so that the checksum is appended. `bits base58` also supports a `--decode` option for retrieving the original payload, e.g.
+The `--check` option is supplied so that the checksum is appended. The `bits base58` command also supports a `--decode` option for retrieving the original payload, e.g.
 
 ```bash
 echo -n <base58-check-encoded-address> | bits base58 --check --decode
@@ -208,9 +210,9 @@ Similarly, we can reproduce segwit address we previously created with `bits addr
 bits hash160 -in pubkey.hex | bits bech32 --hrp bc --wv 0 -P
 ```
 
-As we can see `bits bech32` just gives a little more flexibility with regard to the [bech32 specification](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#bech32), whereas `bits addr` provides practical convenience. With `bits bech32` we can supply an arbitrary human readable part via `--hrp` and an optional Segwit version via the `--witness-version` (`--wv`) flag. From there, the data passed as input is encoded, with checksum appended. Conversely, the convenience of `bits addr` is that the address encoding is inferred from the options provided, i.e. `--network` (`-N`), `--type` (`-T`), and `--witness-version` (`--wv`).
+As we can see, the `bits bech32` command gives us a little bit more flexibility with regard to the [bech32 specification](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#bech32), whereas `bits addr` provides practical convenience. With `bits bech32` we can supply an arbitrary human readable part via `--hrp` and an optional Segwit version via the `--witness-version` (`--wv`) flag. From there, the data passed as input is encoded, with checksum appended. Alternatively, the `bits addr` command provides convenience by performing the address encoding as inferred from the options provided, i.e. `--network` (`-N`), `--type` (`-T`), and `--witness-version` (`--wv`).
 
-Likewise, we can also _decode_ bech32, e.g.
+Furthermore, we can also _decode_ bech32, e.g.
 
 ```bash
 echo -n <bech32-encoded> | bits bech32 --decode
@@ -231,17 +233,17 @@ bits mnemonic
 This command also supports providing your own entropy. For example,
 
 ```bash
-head -c 32 /dev/urandom | bits mnemonic --from-entropy
+head -c 32 /dev/urandom | bits mnemonic -1 --from-entropy
 ```
 
-Furthermore, we can provide the generated mnemonic as input to the `bits mnemonic` command, with the `--to-seed` or `--to-master-key` options present to generate the seed or master key, respectively. These options will cause `bits mnemonic` to prompt for a passphrase at the CLI (which can be blank).
+Furthermore, we can provide the generated mnemonic as input to the `bits mnemonic` command, with the `--to-seed` or `--to-master-key` options present to generate the seed or master key (per [BIP 32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#master-key-generation)), respectively. These options will cause `bits mnemonic` to prompt for a passphrase at the CLI (which can be blank).
 
 ```bash
 echo <mnemonic-phrase> | bits mnemonic --to-master-key
 passphrase: 
 ```
 
-The base58check-encoded master key, provided as output of the previous command, is needed for further derivation per the `bits hd` command.
+The base58check-encoded master key, provided as output of the previous command, is needed for further derivation with the `bits hd` command.
 
 With `bits hd` you may derive private extended private keys (xprv) or extended public keys (xpub) by supplying the root key and a derivation path per [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki), [BIP43](https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki), and/or [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki). For example,
 
@@ -269,7 +271,7 @@ Also, of note, is that you aren't required to use the _root_ master key as input
 
 So far we've seen that the [bits](https://github.com/jtraub91/bits) CLI is able to do some basic bits to bytes manipulations and provide some utilites for generating and managing Bitcoin keys, addresses, and whatnot. What [bits](https://github.com/jtraub91/bits) _does not_ do, currently, is provide a full node for consensus. For now, I recommend having a local [Bitcoin Core](https://github.com/bitcoin/bitcoin) node running (i.e. `bitcoind`) so that blockchain data can be downloaded, transactions can be relayed, and a node for verifying and maintaining consensus can be employed, strengthening the Bitcoin network.
 
-Part of the plan for [bits](https://github.com/jtraub91/bits) is to implement a full node, with built-in rpc server, by version 1. There does actually exist code in the codebase that has started to implement such, but it is not currently very functional nor supported.
+Part of the plan for [bits](https://github.com/jtraub91/bits) is to implement a full node, with built-in [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) server, by version 1. There does actually exist code in the codebase that has started to implement such, but it is not currently very functional nor supported.
 
 So in the meantime, I recommend leveraging [Bitcoin Core](https://github.com/bitcoin/bitcoin) here. As we continue thru this blog, you may want a [Bitcoin Core](https://github.com/bitcoin/bitcoin) node while using subcommands such as `bits tx`, for looking up necessary blockchain data, but additionally and moreover, `bits` can be configured to directly interact with [Bitcoin Core](https://github.com/bitcoin/bitcoin) over RPC, either by sending raw RPC commands via the `bits rpc` command, or by leveraging it internally, as with the `bits send` command, for example. These will be explained, in detail, in the following sections.
 
@@ -310,7 +312,7 @@ Now, let's see how we can form transactions with the [bits](https://github.com/j
 
 Raw Bitcoin transactions can be created with the `bits tx` command. As with any subcommand, you may use `-h` (e.g. `bits tx -h`) for information on the available options, but the key principle of this command is that it expects any number of `--txin` (`-txin`) and `--txout` (`-txout`) flags each with an argument provided as a JSON string with the keys "txid", "vout", and "scriptsig" or  "satoshis" and "scriptpubkey", respectively.
 
-For example, suppose we have the following unspent transaction output (UTXO), associated with the `mkmnWvK9fKEQdUcYrpS7gNkxBZ4CACLmKd` address.
+For example, suppose we have the following [unspent transaction output](https://academy.binance.com/en/glossary/unspent-transaction-output-utxo) (UTXO), associated with the `mkmnWvK9fKEQdUcYrpS7gNkxBZ4CACLmKd` address.
 
 ```bash
 bits rpc scantxoutset start '["addr(mkmnWvK9fKEQdUcYrpS7gNkxBZ4CACLmKd)"]' | jq .unspents
@@ -355,7 +357,7 @@ Output:
 }
 ```
 
-This will show information on the UTXO, including the scriptPubKey in assembly (asm) format. Understanding that the UTXO is a P2PKH output will be important as we continue forming the raw transaction, but first, let's see how we can determine this, using the `bits script` command, instead of leveraging our configured [Bitcoin Core](https://github.com/bitcoin/bitcoin) RPC connection.
+This will show information on the UTXO, including the [scriptPubKey](https://learnmeabitcoin.com/technical/scriptPubKey) in assembly (asm) format. Understanding that the UTXO is a P2PKH output will be important as we continue forming the raw transaction, but first, let's see how we can determine this, using the `bits script` command, instead of leveraging our configured [Bitcoin Core](https://github.com/bitcoin/bitcoin) RPC connection.
 
 ### Encoding (and decoding) Script with `bits script`
 
@@ -373,7 +375,7 @@ Output:
 
 We'll make more use of `bits script` in a bit (no pun intended 😉), but let's first recap where we are at in forming the raw transaction with `bits tx`.
 
-From either of these prior commands, we learn that the UTXO is a pay-to-pubkey-hash (P2PKH) output. We need this information to understand how to build the pre-signature transaction image, as well as, form the correct final scriptSig to unlock the funds. But, we will also need to specify our transaction outputs, indicating the amount of Bitcoin to send and to which address. With Bitcoin, UTXOs are always spent in full, so it is common to have one transaction output indicating our recipient's address, and another to send the "change" back to an address owned by the sender, sometimes referred to as the "change address". Also, be aware that this implies that any amount available from a UTXO which is _not_ used in any of the transaction outputs may be assumed as the "miner fee".  
+From either of these prior commands, we learn that the UTXO is a P2PKH output. We need this information to understand how to build the pre-signature transaction image, as well as, form the correct final [scriptSig](https://river.com/learn/terms/s/scriptsig/) to unlock the funds. But, we will also need to specify our transaction outputs, indicating the amount of Bitcoin to send and to which address. With Bitcoin, UTXOs are always spent in full, so it is common to have one transaction output indicating our recipient's address, and another to send the "change" back to an address owned by the sender, sometimes referred to as the "change address". Also, be aware that this implies that any amount available from a UTXO which is _not_ used in any of the transaction outputs may be assumed as the "miner fee".  
 
 The UTXO above has 50 BTC (5,000,000,000 satoshis). Let's send 4,000,000,000 satoshis to `mp6UyrvbWH3sq1WRjHnVZr23aJfuwDktZg` and use `msgrvCT4DagqPAuFoqqCWqBouv43KyRors` as the change address, leaving 1000 satoshis available for the miner fee. Remember txouts are supplied as a JSON string with keys "satoshis" (specifying the amount) and "scriptpubkey" (specifying the unlocking script). The addresses `mp6UyrvbWH3sq1WRjHnVZr23aJfuwDktZg` and `msgrvCT4DagqPAuFoqqCWqBouv43KyRors` imply a P2PKH transaction output, so to create the scriptpubkey, we can again use `bits script`. `bits script -h` includes useful information on how to form various standard transaction scripts.
 
@@ -445,7 +447,7 @@ Output:
 OK
 ```
 
-Now that we have the signature, we can form the final scriptsig necessary for this pay-to-pubkey-hash UTXO. The scriptsig for a P2PKH output is `<signature> <pubkey>`, both of which can be found above. Therefore we have,
+Now that we have the signature, we can form the final scriptsig necessary for this P2PKH UTXO. The scriptsig for a P2PKH output is `<signature> <pubkey>`, both of which can be found above. Therefore we have,
 
 ```bash
 bits script 3045022100f0cbe27a8f8fe3bde49abcfb15c218fd0e9afe1a69354976752cc4c3c0b11ab60220303ca69643fa29dad33868b1fc8ee1fad29b41890c0cc25f7393a610e6a2d9a901 02ed5df88a8fa1f10389b263eeae8df6456fc16f38da21d8737b9a65a246c358fc
@@ -457,7 +459,7 @@ Output:
 483045022100f0cbe27a8f8fe3bde49abcfb15c218fd0e9afe1a69354976752cc4c3c0b11ab60220303ca69643fa29dad33868b1fc8ee1fad29b41890c0cc25f7393a610e6a2d9a9012102ed5df88a8fa1f10389b263eeae8df6456fc16f38da21d8737b9a65a246c358fc
 ```
 
-Finally, forming the final transaction
+And now, forming the final transaction
 
 ```bash
 bits tx -txin '{"txid": "1c9eb55b17705ca5fc3047d9490ebd3e38422be18fa130dc2389b233767dbc65", "vout": 0, "scriptsig": "483045022100f0cbe27a8f8fe3bde49abcfb15c218fd0e9afe1a69354976752cc4c3c0b11ab60220303ca69643fa29dad33868b1fc8ee1fad29b41890c0cc25f7393a610e6a2d9a9012102ed5df88a8fa1f10389b263eeae8df6456fc16f38da21d8737b9a65a246c358fc"}' -txout '{"satoshis": 4000000000, "scriptpubkey": "76a9145e185942ab1fb90f4880c57384df78dc657a0dba88ac"}' -txout '{"satoshis": 999999000, "scriptpubkey": "76a91485812e40cf29f7103731cc6a17b101a4d640aec088ac"}'
@@ -469,7 +471,7 @@ Output:
 010000000165bc7d7633b28923dc30a18fe12b42383ebd0e49d94730fca55c70175bb59e1c000000006b483045022100f0cbe27a8f8fe3bde49abcfb15c218fd0e9afe1a69354976752cc4c3c0b11ab60220303ca69643fa29dad33868b1fc8ee1fad29b41890c0cc25f7393a610e6a2d9a9012102ed5df88a8fa1f10389b263eeae8df6456fc16f38da21d8737b9a65a246c358fcffffffff0200286bee000000001976a9145e185942ab1fb90f4880c57384df78dc657a0dba88ac18c69a3b000000001976a91485812e40cf29f7103731cc6a17b101a4d640aec088ac00000000
 ```
 
-Finally, this transaction is ready to be broadcasted to the Bitcoin network and we can send it using our configured [Bitcoin Core](https://github.com/bitcoin/bitcoin) RPC node. First let's test the transaction's validity with,
+Finally, this transaction is ready to be broadcasted to the Bitcoin network. And we can send it using our [configured](#configuring-bits-with-a-local-bitcoin-core-node) [Bitcoin Core](https://github.com/bitcoin/bitcoin) RPC node. First let's test the transaction's validity with,
 
 ```bash
 bits rpc testmempoolaccept '["010000000165bc7d7633b28923dc30a18fe12b42383ebd0e49d94730fca55c70175bb59e1c000000006b483045022100f0cbe27a8f8fe3bde49abcfb15c218fd0e9afe1a69354976752cc4c3c0b11ab60220303ca69643fa29dad33868b1fc8ee1fad29b41890c0cc25f7393a610e6a2d9a9012102ed5df88a8fa1f10389b263eeae8df6456fc16f38da21d8737b9a65a246c358fcffffffff0200286bee000000001976a9145e185942ab1fb90f4880c57384df78dc657a0dba88ac18c69a3b000000001976a91485812e40cf29f7103731cc6a17b101a4d640aec088ac00000000"]'
@@ -497,7 +499,7 @@ Remember, you will need to wait, at least until the transaction is mined in a bl
 
 #### Decoding raw transactions
 
-Be aware that you may also decode this raw transaction using `bits tx --decode`. E.g.
+You may also _decode_ this raw transaction using `bits tx --decode`. E.g.
 
 ```bash
 echo 010000000165bc7d7633b28923dc30a18fe12b42383ebd0e49d94730fca55c70175bb59e1c000000006b483045022100f0cbe27a8f8fe3bde49abcfb15c218fd0e9afe1a69354976752cc4c3c0b11ab60220303ca69643fa29dad33868b1fc8ee1fad29b41890c0cc25f7393a610e6a2d9a9012102ed5df88a8fa1f10389b263eeae8df6456fc16f38da21d8737b9a65a246c358fcffffffff0200286bee000000001976a9145e185942ab1fb90f4880c57384df78dc657a0dba88ac18c69a3b000000001976a91485812e40cf29f7103731cc6a17b101a4d640aec088ac00000000 | bits tx --decode | jq .
@@ -507,13 +509,13 @@ echo 010000000165bc7d7633b28923dc30a18fe12b42383ebd0e49d94730fca55c70175bb59e1c0
 
 Forming raw transactions as above, affords us great flexibility, but is a bit tedious. Therefore [bits](https://github.com/jtraub91/bits) provides the `bits send` command, which, as opposed to `bits tx`, provides a better user inteface, and does some of the tedious steps behind the scenes; thereby trading flexibility for convenience.
 
-The `bits send` command integrates directly with (and thus depends on) a configured [Bitcoin Core](https://github.com/bitcoin/bitcoin) node.
+The `bits send` command integrates directly with (and thus depends on) a [configured](#configuring-bits-with-a-local-bitcoin-core-node) [Bitcoin Core](https://github.com/bitcoin/bitcoin) node.
 
 Let's see how it works.
 
 Suppose we have 3.125 BTC associated with the SegWit address `bcrt1quzz3xxt2p0488hvlfelj78dq2pgcsjkd3auhwz` on a local regtest Bitcoin network. Let's send half of these funds to a new address, `bcrt1qddfhzmx80snsgudw8hr2qj9v3yz0vgd9wj5wca`, and use `mp6nDfuUJWV1pNdcxNQtbU29eg3fJ6eK4c` as the change address.
 
-All of the tedious steps we had to do in [creating raw transactions](#creating-raw-transactions) can now be simply expressed as the following.
+Many of the tedious steps we had to do in [creating raw transactions](#creating-raw-transactions) can now be simply expressed as the following.
 
 ```bash
 bits send bcrt1quzz3xxt2p0488hvlfelj78dq2pgcsjkd3auhwz bcrt1qddfhzmx80snsgudw8hr2qj9v3yz0vgd9wj5wca --send-fraction 0.5 --change-addr mp6nDfuUJWV1pNdcxNQtbU29eg3fJ6eK4c
@@ -560,29 +562,31 @@ Output:
 }
 ```
 
-By inspecting the output above, we see 156249000 satoshis in a txout associated with a scriptpubkey indicating a payment to the `bcrt1qddfhzmx80snsgudw8hr2qj9v3yz0vgd9wj5wca` address we used above. This corresponds to half the original amount associated with the sender address of `bcrt1quzz3xxt2p0488hvlfelj78dq2pgcsjkd3auhwz`, minus the miner fee, which defaults to 1000 satoshis but may be specified by using the `--miner-fee` option. We also see the rest of the satoshis being associated in a txout with a scriptpubkey indicating a payment to to our change address of `mp6nDfuUJWV1pNdcxNQtbU29eg3fJ6eK4c`.
+By inspecting the output above, we see 156249000 satoshis in a txout associated with a scriptpubkey indicating a payment to the `bcrt1qddfhzmx80snsgudw8hr2qj9v3yz0vgd9wj5wca` address we used above. This corresponds to half the original amount associated with the sender address of `bcrt1quzz3xxt2p0488hvlfelj78dq2pgcsjkd3auhwz`, minus the miner fee (which defaults to 1000 satoshis but may be specified by using the `--miner-fee` option). We also see the rest of the satoshis being associated in a txout with a scriptpubkey indicating a payment to to our change address of `mp6nDfuUJWV1pNdcxNQtbU29eg3fJ6eK4c`.
 
-However, this raw transaction has not been signed yet. We can see that from the above output by noticing that there is no witness data, which is needed for spenditure from the SegWit sender address, and correspondingly the wtxid is equal to the txid. But, we can do so easily with the `bits send` command, by provided the private key(s) necessary for spenditure, in base58-encoded _extended_ [WIF](https://en.bitcoin.it/wiki/Wallet_import_format) format. The extended WIF format can be created via the `bits wif` command.
+However, this raw transaction has not been signed yet. We can see that from the above output by noticing that there is no witness data, which is needed for spenditure from the SegWit sender address, and correspondingly the wtxid is equal to the txid. But, we can do so easily with the `bits send` command, by provided the private key(s) necessary for spenditure, in _extended_ [WIF](https://en.bitcoin.it/wiki/Wallet_import_format) format. The extended WIF encoded private key can be created with the `bits wif` command.
 
 ### Encode (or decode) a private key in extended WIF format
 
-Building upon WIF and code seen in the [electrum wallet codebase](https://github.com/spesmilo/electrum/blob/4.4.0/electrum/bitcoin.py#L618-L625), _extended_ WIF, allows for encoding a private key with additional data indicating not only its corresponding address type, but also the necessary data needed for spenditure (i.e. the data needed for creating an appropriate scriptsig, like the redeem script for a p2sh address, for example).
+Building upon WIF and code seen in the [electrum wallet codebase](https://github.com/spesmilo/electrum/blob/4.4.0/electrum/bitcoin.py#L618-L625), _extended_ WIF, allows for encoding a private key with additional data indicating not only its corresponding address type, but also the additional data necessary for spenditure (i.e. the data needed for creating an appropriate scriptsig, such as the redeem script for a P2SH address, for example).
 
-To provide some background, a standard WIF-encoded key is defined as the following data, in base58check encoding.
+To provide some background, a standard WIF encoded key is defined as the following, encoded in base58check.
 
 ```text
 network version byte + private key + optional 0x01 byte denoting a compressed pubkey
 ```
 
-_Extended_ WIF for the purposes here is defined as the following data structure, in base58 check encoding.
+_Extended_ WIF for the purposes here is defined as the following data structure, encoded in base58check.
 
 ```text
 (network version byte + address type offset) + private key + (data)
 ```
 
-Long story short, extended WIF allows us to provide extra information on the specific address type the private key shall correspond to, and the arbitrary data needed to spend it, while being backwards compatible with standard WIF.
+To summarize, extended WIF allows us to provide extra information on the specific address type the private key shall correspond to, and the arbitrary data needed to spend it, while being backwards compatible with standard WIF.
 
 The `bits wif` command makes this encoding task easier for us. To encode the private key associated with the sender address used above, we may use the following, for example.
+
+Assuming the private key is stored in hexadecimal string format in a file named `sender_addr.hex`, we have,
 
 ```bash
 bits wif -i sender_addr.hex -T p2wpkh -P
@@ -594,9 +598,9 @@ Output:
 94oeEPncUHF7hrXPx7bdbSPrar8tx8bUFNihAg6qr6NAN8Txxrb
 ```
 
-Note that the above assumes the private key is stored in a file named `sender_addr.hex`. We supplied the `-T` option (`--addr-type`) to denote a `p2wpkh` address type and omitted the `-D` option (`--data`) for the appended data necessary for a p2pkh address with a compressed pubkey, since a compressed pubkey is implied for SegWit p2wpkh addresses. More info and help on the necessary data and the various supported address types can be seen with the `bits wif -h` command.
+We supplied the `-T` option (`--addr-type`) to denote a `p2wpkh` address type and omitted the `-D` option (`--data`) for optional data, since a compressed pubkey is implied for SegWit p2wpkh addresses. Information and help on the necessary data as well as the various supported address types for extended WIF, can be seen with the `bits wif -h` command.
 
-We can also review the encoding, by performing a decode operation with the following.
+We can also review the encoding, by performing a _decode_ operation with the following.
 
 ```bash
 echo -n 94oeEPncUHF7hrXPx7bdbSPrar8tx8bUFNihAg6qr6NAN8Txxrb | bits wif --decode | jq .
@@ -614,13 +618,13 @@ Output:
 }
 ```
 
-Here we see the decoded address as a JSON structure. We see a version of hex `f0` indicating the `ef` testnet/regtest network version byte plus address offset of `01` for a p2wpkh address. We also see that information being provided by the `network` and `addr_type` keys, respectively. Finally we see the decoded private key value as hex, as well as the empty data key value, since no further data was appended.
+Here we see the decoded address as a JSON structure. We see a version of hex `f0` indicating the `ef` testnet/regtest network version byte plus address offset of `01` for a P2WPKH address. We also see that information being provided by the `network` and `addr_type` keys, respectively. Finally we see the decoded private key value in hexadecimal string format, as well as the empty data key value, since no further data was appended.
 
-Now, we can take this key back to our `bits send` command we saw previously to sign the send transaction for spenditure from the sender address of `bcrt1quzz3xxt2p0488hvlfelj78dq2pgcsjkd3auhwz`.
+Now, we can take this key back to our `bits send` command we used previously to sign the transaction for spenditure from the sender address of `bcrt1quzz3xxt2p0488hvlfelj78dq2pgcsjkd3auhwz`.
 
 ### Signing the transaction with `bits send`
 
-We simply take the command we used previously, but also leverage the `--sighash` option to specify the SIGHASH flag and denote a signing operation is to occur, and provide the WIF key(s) necessary for spenditure via the input, i.e.
+Now, we simply take the command we used previously, but also leverage the `--sighash` option to specify the SIGHASH flag and denote a signing operation is to occur, and provide the WIF key(s) necessary for spenditure via the input, i.e.
 
 ```bash
 echo -n 94oeEPncUHF7hrXPx7bdbSPrar8tx8bUFNihAg6qr6NAN8Txxrb | bits send bcrt1quzz3xxt2p0488hvlfelj78dq2pgcsjkd3auhwz bcrt1qddfhzmx80snsgudw8hr2qj9v3yz0vgd9wj5wca --send-fraction 0.5 --change-addr mp6nDfuUJWV1pNdcxNQtbU29eg3fJ6eK4c --sighash all
@@ -673,7 +677,7 @@ Output:
 }
 ```
 
-We now see the necessary signature data via the witness. Finally, we can again leverage our configure Bitcoin Core rpc node to send the raw transaction, e.g.
+We now see the necessary signature data via the witness. Finally, we can again leverage our [configured](#configuring-bits-with-a-local-bitcoin-core-node) [Bitcoin Core](https://github.com/bitcoin/bitcoin) RPC node to send the raw transaction, e.g.
 
 ```bash
 bits rpc sendrawtransaction "0100000000010189592b942d94a2265c4c986560363b5cf672fd9c6b8b5acc212759e436efa6150000000000ffffffff02a82b5009000000001600146b53716cc77c270471ae3dc6a048ac8904f621a5902f5009000000001976a9145e26bd0264f1a2451c552e313ad94b7127c7a76488ac0247304402202f14ed3b68d8a97faf5c7f176f55d8610d27adf85927d213de88f562d821d2eb02203c04f9b9280038f34de89990852c3b54b94174154be5b01621e9dc5a5c4488d201210365a02c1e0ca4e10aa8ff5283ac0476077c503a440699212744ded7235ba5f87500000000"
@@ -687,9 +691,9 @@ b3eebeb8d25935ad78592d74f71107506cafbf5e1d61d66a15134b47fec35310
 
 Again, remember that this transaction must be mined in a block before we can view the fund transfer on the blockchain, (which offers us a nice segway to some of the last subcommands we will demo in this blog) but it should now be clear how `bits send` can provide an easier and more convenient method for sending funds.
 
-### Closing bits
+### Mining blocks
 
-That about wraps it up for this blog post, but before we go, there are a few more subcommands I'd like to explain. First, as stated just above, the raw transaction we sent to our configured Bitcoin Core node won't be reflected in the blockchain until it is mined. For mainnet, this will happen by some miner on the network at an average rate of every 10 minutes. [Bits](https://github.com/jtraub91/bits) actually provides the `bits mine` command to mine blocks, which depends on a locally configured Bitcoin Core node. This may take a _long_ time in practice for mainnet, but for our demonstration purposes for regtest, this command can be used to mine blocks and receive block rewards. For example, to include the raw transaction we sent above (which is now part of the mempool) in a block, and receive the reward to a new address, `mvbD8F7cuoQcUcTfnLU72rMtB35P6wAHBJ`, we can use the following.
+As stated just above, the raw transaction we just sent via our [configured](#configuring-bits-with-a-local-bitcoin-core-node) [Bitcoin Core](https://github.com/bitcoin/bitcoin) RPC connection won't be reflected in the blockchain until it is mined. For mainnet, this will happen by some miner on the network at an average rate of every 10 minutes. However, the [bits](https://github.com/jtraub91/bits) CLI actually provides the `bits mine` command to mine blocks, which also depends on a locally configured Bitcoin Core node. This may take a _long_ time in practice for mainnet, but for our demonstration purposes on _regtest_, this command can be used to mine blocks and receive block rewards quickly. For example, to include the raw transaction we sent above (which is now part of the mempool) in a block, and receive the reward to a new address, e.g. `mvbD8F7cuoQcUcTfnLU72rMtB35P6wAHBJ`, we can use the following.
 
 ```bash
 bits mine --limit 1 --recv-addr mvbD8F7cuoQcUcTfnLU72rMtB35P6wAHBJ
@@ -703,7 +707,7 @@ Output:
 
 The `--limit` option is used to only mine the indicated number of blocks. If this option is omitted the `bits mine` command will mine indefinitely. Also, `--recv-addr` is used to indicate the address that the block reward shall be sent to.
 
-Now with previous transaction mined in a block, with the following command we can see that there is no longer any funds associated with the `bcrt1quzz3xxt2p0488hvlfelj78dq2pgcsjkd3auhwz` address, as well as the newly acquired funds for the `bcrt1qddfhzmx80snsgudw8hr2qj9v3yz0vgd9wj5wca` recipient address and `mp6nDfuUJWV1pNdcxNQtbU29eg3fJ6eK4c` change address, as well as the block reward of 1.5625 BTC now associated with the `mvbD8F7cuoQcUcTfnLU72rMtB35P6wAHBJ` address, used in the `bits mine` command issued just above.
+Now with the previous transaction mined in a block, the following command can show us the respective amounts now allocated to the various addresses used in this demonstration.
 
 ```bash
 bits rpc scantxoutset start '["addr(bcrt1quzz3xxt2p0488hvlfelj78dq2pgcsjkd3auhwz)", "addr(bcrt1qddfhzmx80snsgudw8hr2qj9v3yz0vgd9wj5wca)", "addr(mp6nDfuUJWV1pNdcxNQtbU29eg3fJ6eK4c)", "addr(mvbD8F7cuoQcUcTfnLU72rMtB35P6wAHBJ)"]' | jq .
@@ -747,7 +751,7 @@ Output:
 }
 ```
 
-Note that the block reward remains unavailable for spenditure for 100 blocks so to make the funds now associated with `mvbD8F7cuoQcUcTfnLU72rMtB35P6wAHBJ` immediately available, we can mine 100 blocks, e.g.
+Note that per consensus rules, the block reward will remain unavailable for spenditure for 100 blocks; so to make the funds now associated with `mvbD8F7cuoQcUcTfnLU72rMtB35P6wAHBJ` immediately available, we can mine 100 blocks, e.g.
 
 ```bash
 bits mine --limit 100 --recv-addr ""
@@ -761,9 +765,13 @@ Output:
 
 Note that we provided an empty `--recv-addr` for demo purposes since we do not care about the block reward in this instance on regtest. This is not recommended for production purposes on mainnet! 🤑
 
-For some last closing bits, be aware that there does exist a `bits p2p` command _which is not currently very functional_, which intends eventually implement a native full node for [bits](https://github.com/jtraub91/bits) which would deprecate the support for a configured Bitcoin Core RPC connection. Exposing this subcommand is only to show users what is planned for the roadmap. Play around or hack on it, but don't expect it to do anything useful at present.
+### Closing bits
 
-Finally, the last subcommand I will speak of in this post is the `bits blockchain` command. Again, this command is planned to be able to explore and retrieve blockchain data, which will depend on a functioning `bits p2p` full node. In the meantime it supports _decoding_ raw blocks, which may be useful for debugging, and also can retrieve the genesis block at the block height of 0, e.g.
+That about wraps it up for this blog post, but before we go, there are a couple more subcommands I'd like to explain.
+
+Though unsupported (nor functionl nor advised 😅), there does exist a `bits p2p` command , which intends to eventually implement a functional native full node for [bits](https://github.com/jtraub91/bits), which would thereby deprecate support for [configuring](#configuring-bits-with-a-local-bitcoin-core-node) a [Bitcoin Core](https://github.com/bitcoin/bitcoin) RPC connection. Exposing this subcommand is only to show users what is in the codebase today, and to help to illustrate what is planned for future. Play around or hack on it, but don't expect it to do anything too useful at present.
+
+Finally, the last subcommand I will mention is the `bits blockchain` command. Again, this command is planned to be able to explore and retrieve blockchain data, and will depend on a functioning `bits p2p` full node. In the meantime it supports _decoding_ raw blocks (via `bits blockchain --decode`), which can be useful for debugging. Other than that, it currently supports retrieving only the hard-coded genesis block of the Bitcoin blockchain, at the block height of 0, e.g.
 
 ```bash
 bits blockchain 0
@@ -775,13 +783,13 @@ Output:
 01000000000000000000000000000000000000000000000000000000000000000000000001000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac0000000029ab5f49ffff001d1dac2b7c0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000
 ```
 
-Like many `bits` subcommands, the output can be specified as raw binary, and this one contains some significant historical information 😉.
+Like many `bits` subcommands, the output can be specified as raw binary, for which may be interesting to view, as this output contains some notable historical information 😉.
 
 ```bash
 bits blockchain 0 -0
 ```
 
-That concludes this post. I hope this cli tool and library is useful and can provide benefit to many. Please feel free to reach out for questions or to just say hi 😎 Till next time ✌️
+That concludes this post! Thanks for bearing with me 🙏 I hope you find this cli tool and library to be useful. Please feel free to reach out for questions or to just say hi 👋 Till next time ✌️ 😎 ❤️
 
 ### Citations
 
