@@ -26,6 +26,7 @@ baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://jtraub91.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 twitter_username: jtraub91
 github_username: jtraub91
+instagram_username: jason.traub
 
 # Build settings
 theme: minima
@@ -43,11 +44,12 @@ plugins:
 exclude:
   - venv/
   - data/
+  - README.md
 #   - .sass-cache/
 #   - .jekyll-cache/
 #   - gemfiles/
-#   - Gemfile
-#   - Gemfile.lock
+  - Gemfile
+  - Gemfile.lock
 #   - node_modules/
 #   - vendor/bundle/
 #   - vendor/cache/
